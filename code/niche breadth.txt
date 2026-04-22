@@ -1,0 +1,7 @@
+library(vegan)
+library(spaa)
+com=read.table("clipboard",header=T, row.names=1)
+comm <- t(com)
+niche_width <- niche.width(comm, method = 'levins')
+niche_width
+write.table(niche_width, 'niche_width.txt', sep = '\t', row.names = FALSE, quote = FALSE)

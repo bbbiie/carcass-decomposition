@@ -1,0 +1,57 @@
+
+library(ggplot2)
+library(RColorBrewer)
+library(tidyverse)
+library(randomForest) 
+library(rfPermute)
+library(openxlsx)
+
+df <- read.xlsx('stat.xlsx')
+
+set.seed(123)
+df.rf <- randomForest(richness ~ ., 
+                      data= df, 
+                      ntree = 1000,
+                      importance=TRUE, proximity=TRUE)
+importance(df.rf, decreasing = F)
+
+
+set.seed(123)
+richness.rfP<- rfPermute(richness ~ ., data = df, 
+                         ntree = 500,
+                         nrep = 299, 
+                         num.cores = 2)
+importance(richness.rfP, decreasing = F)
+richness.data <- data.frame(importance(richness.rfP, decreasing = F))
+
+
+richness.data <- mutate(richness.data,
+  label = ifelse(X.IncMSE.pval < 0.001, '***',
+                 ifelse(X.IncMSE.pval < 0.01, '**',
+                        ifelse(X.IncMSE.pval < 0.05, '*', ''))))
+
+richness.data$name <- rownames(richness.data)
+
+richness.data$name <- factor(richness.data$name,
+                         levels = richness.data$name)
+
+p <- ggplot(richness.data, aes(name, X.IncMSE)) +
+  geom_bar(aes(fill = label),
+           stat = 'identity') +
+  scale_fill_manual(values = brewer.pal(6,"Accent")) +
+  geom_text(aes(y = X.IncMSE + 0.5,
+                label = label)) +
+  theme_classic() +
+  labs(x = '',
+       y = 'Increase in MSE(%)') +
+  theme(legend.position = '') +
+  coord_flip() 
+
+p
+
+df.rf 
+
+library(A3)
+set.seed(123)
+otu_forest.pval <- a3(richness~., data = df, model.fn = randomForest, p.acc = 0.001, model.args = list(importance = TRUE, ntree = 500))
+otu_forest.pval

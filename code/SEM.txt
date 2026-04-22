@@ -1,0 +1,53 @@
+
+library(lavaan)
+library(haven)
+library(Hmisc)
+library(semPlot)
+library(ggplot2)
+
+aa<-read.csv("test/test_design.csv")
+df=scale(aa[,2:23],center=TRUE,scale=TRUE)
+
+model <- '
+ARG~location
+ARG~pH
+ARG~CON
+ARG~TDS
+ARG~SALT
+ARG~ORP
+ARG~Hg
+ARG~As
+ARG~Pb
+ARG~TP
+ARG~TN
+ARG~TC
+ARG~TS
+ARG~shannon
+ARG~PCoA1
+ARG~PCoA2
+ARG~transposase
+ARG~plasmid
+ARG~IS91
+ARG~tniA
+ARG~integrase
+
+TK~~AP+pH+SOC
+TN~~SOC+TP
+TP~~AP
+'    
+fit_model<-sem(model,data=df)
+resid(fit_model, type = "cor")
+
+summary(fit_model,standardized=T)
+modindices(fit_model,sort.=TRUE)
+inspect(fit_model,what="std")
+
+fitmeasures(fit_model,c("chisq", "df", "gfi", "rmsea", "srmr"))
+
+
+pdf("test/sem.pdf",width = 18, height = 18)
+
+semPaths(fit_model,"std",edge.label.cex=0.8,#字体
+         fade=FALSE, layout = "spring",#布局
+         optimizeLatRes = FALSE, residuals = FALSE)
+dev.off()

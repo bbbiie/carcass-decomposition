@@ -1,0 +1,14 @@
+install.packages("psych")
+
+library(psych)
+
+otu=read.table("clipboard", head=T, row.names=1)
+
+occor = corr.test(otu,use="pairwise",method="spearman",adjust="fdr",alpha=0.05)
+write.csv(cor(otu, method="spearman"), file="AB.csv") 
+
+occor.r = occor$r
+occor.p = occor$p
+occor.r[occor.p>0.05|abs(occor.r)<0.6] = 0
+
+write.csv(occor.r,file="ab4_1_0.4.csv")

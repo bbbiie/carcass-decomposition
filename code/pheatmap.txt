@@ -1,0 +1,5 @@
+install.packages("pheatmap")
+library(pheatmap)
+data_norm=read.table("clipboard",header=T)
+pheatmap(data_norm,scale="row",cluster_row=FALSE,cluster_cols=FALSE) 
+pheatmap(data_norm,scale="row",cluster_row=FALSE,cluster_cols=FALSE) 

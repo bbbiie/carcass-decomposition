@@ -1,0 +1,101 @@
+zero <- function(vec){  
+num.zero <- length(which(vec == 0))  
+return(num.zero)
+}
+neg.mean <- function(vector){  
+neg.vals <- vector[which(vector < 0)]  
+n.mean <- mean(neg.vals)  
+if(length(neg.vals) == 0) n.mean <- 0  
+return(n.mean)
+}
+
+pos.mean <- function(vector){  
+pos.vals <- vector[which(vector > 0)]  
+p.mean <- mean(pos.vals)  
+if(length(pos.vals) == 0) p.mean <- 0  
+return(p.mean)}
+
+pers.cutoff <- 0.50
+iter <- 200
+tax.shuffle <- T
+
+use.custom.cors <- F
+b <- read.csv("P6.csv", header = T, row.names = 1)  #b=read.table("clipboard", header=T)
+b <- t(b)
+
+c <- as.matrix(b)
+c <- c[rowSums(c) > 0, colSums(c) > 0]
+
+rowsums.orig <- rowSums(c)
+
+zero.cutoff <- ceiling(pers.cutoff * nrow(c))
+
+
+keep_taxa <- colSums(c == 0) < (dim(c)[2] - zero.cutoff)
+d <- c[, keep_taxa]
+
+d <- d[rowSums(d) > 0, ]
+if (use.custom.cors) {
+  keep_rows_cols <- keep_taxa
+  custom.cor.mat.sub <- custom.cor.mat[keep_rows_cols, keep_rows_cols]
+}
+
+
+rel.d <- c / rowsums.orig
+
+hist(rowSums(rel.d))
+cor.mat.true <- cor(rel.d)
+med.tax.cors <- vector()
+
+if(use.custom.cors == F) {
+ifelse(tax.shuffle, {  
+for(which.taxon in 1:dim(rel.d)[2]){    
+    
+perm.cor.vec.mat <- vector()
+
+    for(i in 1:iter){      
+perm.rel.d <- matrix(numeric(0), dim(rel.d)[1], dim(rel.d)[2])      
+rownames(perm.rel.d) <- rownames(rel.d)      
+colnames(perm.rel.d) <- colnames(rel.d)  
+for(j in 1:dim(rel.d)[2]){          
+perm.rel.d[, j ] <- sample(rel.d[ ,j ])       
+}
+
+perm.rel.d[, which.taxon] <- rel.d[ , which.taxon]    
+cor.mat.null <- cor(perm.rel.d)   
+perm.cor.vec.mat <- cbind(perm.cor.vec.mat, cor.mat.null[, which.taxon])          
+}   
+med.tax.cors <- cbind(med.tax.cors, apply(perm.cor.vec.mat, 1, median))
+
+if(which.taxon %% 20 == 0){print(which.taxon)}
+  }
+} , {
+  for(which.taxon in 1:dim(rel.d)[2]){  
+perm.cor.vec.mat <- vector()        
+for(i in 1:iter){      
+perm.rel.d <- rel.d 
+for(j in 1:dim(rel.d)[1]){
+         which.replace <- which(rel.d[j, ] > 0 )         
+        which.replace.nonfocal <- which.replace[!(which.replace %in% which.taxon)]                      
+perm.rel.d[j, which.replace.nonfocal] <- sample(rel.d[ j, which.replace.nonfocal])
+       }
+med.tax.cors <- cbind(med.tax.cors, apply(perm.cor.vec.mat, 1, median))   
+if(which.taxon %% 20 == 0){print(which.taxon)}
+  }
+ }
+)
+}
+
+ifelse(use.custom.cors == T, {
+  obs.exp.cors.mat <- custom.cor.mat.sub}, {
+    obs.exp.cors.mat <- cor.mat.true - med.tax.cors
+  }
+)
+diag(obs.exp.cors.mat) <- 0
+connectedness.pos <- apply(obs.exp.cors.mat, 2, pos.mean)
+connectedness.neg <- apply(obs.exp.cors.mat, 2, neg.mean)
+cohesion.pos <- rel.d %*% connectedness.pos
+cohesion.neg <- rel.d %*% connectedness.neg
+output <- list(connectedness.neg, connectedness.pos, cohesion.neg, cohesion.pos)
+names(output) <- c("Negative Connectedness", "Positive Connectedness", "Negative Cohesion", "Positive Cohesion")
+print(output)

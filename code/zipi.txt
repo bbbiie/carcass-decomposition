@@ -1,0 +1,91 @@
+
+library(igraph)
+adjacency_unweight <- read.delim('adjacency_unweight.txt', row.names = 1, sep = '\t', check.names = FALSE)
+head(adjacency_unweight)[1:6]    #邻接矩阵类型的网络文件
+igraph <- graph_from_adjacency_matrix(as.matrix(adjacency_unweight), mode = 'undirected', weighted = NULL, diag = FALSE)
+igraph  
+ 
+
+V(igraph)$degree <- degree(igraph)
+
+set.seed(123)
+V(igraph)$modularity <- membership(cluster_fast_greedy(igraph))
+ 
+nodes_list <- data.frame(
+    nodes_id = V(igraph)$name, 
+        degree = V(igraph)$degree, 
+        modularity = V(igraph)$modularity
+)
+head(nodes_list)    
+ 
+write.table(nodes_list, 'nodes_list.txt', sep = '\t', row.names = FALSE, quote = FALSE)
+
+source('zi_pi.r') 
+ 
+adjacency_unweight <- read.delim('adjacency_unweight.txt', row.names = 1, sep = '\t', check.names = FALSE)
+
+nodes_list <- read.delim('nodes_list.txt', row.names = 1, sep = '\t', check.names = FALSE)
+ 
+nodes_list <- nodes_list[rownames(adjacency_unweight), ]
+
+zi_pi <- zi.pi(nodes_list, adjacency_unweight, degree = 'degree', modularity_class = 'modularity')
+head(zi_pi)
+ 
+write.table(zi_pi, 'zi_pi_result.txt', sep = '\t', row.names = FALSE, quote = FALSE)
+
+library(ggplot2)
+ 
+zi_pi <- na.omit(zi_pi)  
+#zi_pi=read.table("clipboard", head=T, row.names=1, sep = '\t', check.names = FALSE)
+zi_pi[which(zi_pi$within_module_connectivities < 2.5 & zi_pi$among_module_connectivities < 0.62),'type'] <- 'Peripherals'
+zi_pi[which(zi_pi$within_module_connectivities < 2.5 & zi_pi$among_module_connectivities > 0.62),'type'] <- 'Connectors'
+zi_pi[which(zi_pi$within_module_connectivities > 2.5 & zi_pi$among_module_connectivities < 0.62),'type'] <- 'Module hubs'
+zi_pi[which(zi_pi$within_module_connectivities > 2.5 & zi_pi$among_module_connectivities > 0.62),'type'] <- 'Network hubs'
+ 
+ggplot(zi_pi, aes(among_module_connectivities, within_module_connectivities)) +
+geom_point(aes(color = type), alpha = 0.5, size = 2) +
+scale_color_manual(values = c('gray','red','blue','purple'),
+    limits = c('Peripherals', 'Connectors', 'Module hubs', 'Network hubs'))+
+theme(panel.grid = element_blank(), axis.line = element_line(colour = 'black'),
+    panel.background = element_blank(), legend.key = element_blank()) +
+labs(x = 'Among-module connectivities', y = 'Within-module connectivities', color = '') +
+geom_vline(xintercept = 0.62) +
+geom_hline(yintercept = 2.5)
+
+library(ggplot2)
+
+ggplot(zi_pi, aes(among_module_connectivities, within_module_connectivities)) + 
+  geom_point(aes(color = type), alpha = 0.8, size = 5, shape = 17) + 
+ geom_text_repel(
+    data = subset(zi_pi, type != "Peripherals"),
+    aes(label = nodes_id),
+    size = 3,
+    color = "black",
+    box.padding = 0.5,  
+    max.overlaps = Inf   
+  ) +
+  
+  scale_y_continuous(limits = c(-2, 3)) + 
+  scale_color_manual(
+    values = c("#8491B4FF", "#91D1C2FF", "#F39B7FFF", "#4DBBD5FF"), 
+    limits = c('Peripherals', 'Connectors', 'Module hubs', 'Network hubs')
+  ) +
+  theme(
+    panel.grid = element_blank(), 
+    axis.line = element_line(colour = 'black'), 
+    panel.background = element_blank(), 
+    legend.key = element_blank()
+  ) + 
+  labs(
+    x = 'Among-module connectivities', 
+    y = 'Within-module connectivities', 
+    color = ''
+  ) + 
+  geom_vline(xintercept = 0.62, linetype = 2, size = 1) + 
+  geom_hline(yintercept = 2.5, linetype = 2, size = 1) + 
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.25, "cm"), 
+    axis.text.x = element_text(margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")), 
+    axis.text.y = element_text(margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"))
+  )
